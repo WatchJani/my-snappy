@@ -1,22 +1,30 @@
 package main
 
 import (
+	"fmt"
 	"root/hash"
+
+	"github.com/golang/snappy"
 )
 
 func main() {
 	hash := hash.New(1 << 14)
 	text := []byte("Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.")
-	buffer := make([]byte, 2000)
-	Search(buffer, text, hash)
+	buffer := make([]byte, 1000)
+
+	fmt.Println(string(buffer[:Search(buffer, text, hash)]))
+	fmt.Println("==============")
+	fmt.Println(string(snappy.Encode(buffer, text)))
 }
 
 func Search(buffer, data []byte, hash *hash.Hash) (d int) {
 	pointer := 0
+	nextEmit := 0
 
 	for {
 		skip := 32
 		var position int
+
 		for {
 			//quick search (first 32 byte check every, after 32 check
 			//every second, after that every third...)
@@ -24,11 +32,13 @@ func Search(buffer, data []byte, hash *hash.Hash) (d int) {
 			pointer += jump
 			skip += jump
 
+			fmt.Println(pointer)
+
 			if pointer > len(data)-17 {
 				return
 			}
 
-			block_byte := load32(data, pointer) //4 byte per block
+			block_byte := load32(data, pointer) //4 byte per block -> 32 bit
 
 			//check if our value exist
 			if p, find := hash.GetValue(block_byte); find { //p is candidate
@@ -42,9 +52,9 @@ func Search(buffer, data []byte, hash *hash.Hash) (d int) {
 			hash.Append(block_byte, pointer)
 		}
 
-		d += emitLiteral(buffer, data[:position])
+		d += emitLiteral(buffer[d:], data[nextEmit:pointer])
 
-		base := pointer
+		base := position
 
 		pointer, position = pointer+4, position+4
 
@@ -57,6 +67,7 @@ func Search(buffer, data []byte, hash *hash.Hash) (d int) {
 		}
 
 		d += emitCopy(buffer[d:], base-position, pointer-base)
+		nextEmit = pointer
 	}
 }
 

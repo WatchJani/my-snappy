@@ -15,11 +15,11 @@ func New(capacity int) *Hash {
 }
 
 func (h *Hash) Append(key uint32, value int) {
-	h.table[hash(uint32(key), 18)] = value
+	h.table[hash(uint32(key), 21)&((1<<14)-1)] = value
 }
 
 func (h *Hash) GetValue(key uint32) (int, bool) {
-	data := h.table[hash(uint32(key), 18)]
+	data := h.table[hash(uint32(key), 21)]
 
 	return data, data != 0
 }
